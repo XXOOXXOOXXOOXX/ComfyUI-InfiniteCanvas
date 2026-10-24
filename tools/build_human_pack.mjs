@@ -1,0 +1,9 @@
+import fs from 'node:fs';
+import {parseMorphPack,solveMorph} from './human_morph_runtime.mjs';
+const original=process.argv[2];if(!original)throw Error('Pass the verified upstream MakeHuman v2 binary path.');
+const bytes=fs.readFileSync(original),data=parseMorphPack(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength));
+const profiles={'标准男性':{gender:1},'标准女性':{gender:0},'健硕':{gender:1,muscle:1,weight:.65},'纤细':{weight:.2},'少年':{age:15,weight:.4},'儿童':{age:8,height:.25},'宽厚':{gender:1,weight:.9,muscle:.6},'二头身':{age:4,height:.1}};
+let offset=0;const chunks=[];const attribute=array=>{const descriptor={offset,length:array.length};chunks.push(Buffer.from(array.buffer,array.byteOffset,array.byteLength));offset+=array.byteLength;return descriptor;};
+const header={version:1,license:'CC0-1.0',source:'T8mars/Comfyui-Qwen-Image-2.1-MultiAngle-T8@351506468a0cc53d8c8e80edd5066133c88f99a3',sourceSha256:'b93d95b0d74f9afcc039540a81b72b5c1ffaf59fd704f556ca2be8e8da415eaa',indices:attribute(data.baseIndices),skinIndices:attribute(data.skinIndices),skinWeights:attribute(data.skinWeights),bones:data.bones,profiles:{}};
+for(const [name,options]of Object.entries(profiles)){const result=solveMorph(data,{age:25,gender:.5,weight:.5,muscle:.5,height:.5,breast_size:0,show_genitals:false,...options});header.profiles[name]={vertices:attribute(result.vertices),bones:attribute(result.bonePositions)};}
+const text=Buffer.from(JSON.stringify(header)),prefix=Buffer.alloc(12);prefix.write('ICHUMAN1',0);prefix.writeUInt32LE(text.length,8);const padding=Buffer.alloc((4-(12+text.length)%4)%4);fs.writeFileSync(new URL('../web/vendor/human/humans.bin',import.meta.url),Buffer.concat([prefix,text,padding,...chunks]));console.log('Human pack created:',offset,'bytes of fixed CC0 geometry; no texture or inference weights.');
