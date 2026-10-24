@@ -3,6 +3,7 @@ import {newBoard,newNode,linkNodes,inputs,references,inputText,removeNode,valida
 import {WorkflowRunner,workflowInfo,groupsFor,resolveGroup,groupNotes,textBindings} from "./workflow.js";
 import {installWorkspace} from "./workspace.js";
 import {installEditing} from "./editing.js";
+import {installCanvasTools} from "./canvas_tools.js";
 export const el=(tag,cls="",text="")=>{const element=document.createElement(tag);element.className=cls;element.textContent=text;return element;};
 export const control=(label,text,action,cls="")=>{const element=el("button",cls,text);element.type="button";element.title=element.ariaLabel=label;element.addEventListener("click",event=>{event.stopPropagation();Promise.resolve().then(()=>action(event)).catch(error=>globalThis.InfiniteCanvasUI?.notice(error.message,true));});return element;};
 const field=(label,value="",tag="input")=>{const element=el(tag);element.ariaLabel=label;element.value=value;return element;};
@@ -27,7 +28,7 @@ export class InfiniteCanvas{
         this.stage.addEventListener("drop",event=>{event.preventDefault();this.stage.classList.remove("ic-drop-active");this.lastPoint=this.point(event);this.uploadFiles([...event.dataTransfer.files]).catch(error=>this.notice(error.message,true));});
         this.onKey=event=>{if(this.shell.hidden||this.directorActive)return;if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==="s"){event.preventDefault();event.stopImmediatePropagation();this.save();return;}if(event.key==="Escape"){event.preventDefault();event.stopPropagation();if(this.connecting){this.endConnection?.();}else if(this.overlay)this.closeDialog();else if(this.popup)this.closeMenu();else if(this.editor)this.closeEditor();else this.close();}if(["Delete","Backspace"].includes(event.key)&&this.selected&&!event.target.closest("input,textarea,select,[contenteditable],.ic-wire-hit,.ic-wire-remove")){event.preventDefault();try{this.deleteSelected();}catch(error){this.notice(error.message,true);}}};addEventListener("keydown",this.onKey,true);
         this.runner=new WorkflowRunner({app,api,request:(...args)=>this.request(...args),onChange:job=>{this.jobs.set(job.node,job);if(this.board?.id===job.board)this.paintJob(job.node);}});
-        this.onResize=()=>{if(!this.shell.hidden&&this.board)this.view();};addEventListener("resize",this.onResize);installWorkspace(this);installEditing(this);
+        this.onResize=()=>{if(!this.shell.hidden&&this.board)this.view();};addEventListener("resize",this.onResize);installWorkspace(this);installEditing(this);installCanvasTools(this);
     }
     async request(path,method="GET",body){const response=await this.api.fetchApi("/infinite_canvas"+path,{method,...(body?{headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{})});const data=await response.json();if(!response.ok||data.ok===false)throw Error(data.error||"画布请求失败。");return data;}
     notice(text,error=false){this.status.textContent=text;this.status.dataset.error=String(error);}

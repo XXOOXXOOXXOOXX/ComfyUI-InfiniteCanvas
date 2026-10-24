@@ -9,6 +9,7 @@ from aiohttp import web
 import folder_paths
 from server import PromptServer
 from .store import BoardStore, StudioError, identifier
+from .library_store import LibraryStore
 from .nodes import media_path
 from .ollama import list_models, require_model, stream_chat, validate_host
 
@@ -44,6 +45,22 @@ def register():
     @guarded
     async def boards(request):
         return web.json_response({"ok": True, "boards": BoardStore(user_root(request)).list()})
+
+    @routes.get("/infinite_canvas/library")
+    @guarded
+    async def library(request):
+        store = LibraryStore(user_root(request).parent)
+        value = await asyncio.to_thread(store.read)
+        return web.json_response({"ok": True, "library": value}, headers={"Cache-Control": "no-store"})
+
+    @routes.put("/infinite_canvas/library")
+    @guarded
+    async def save_library(request):
+        if request.content_length and request.content_length > 16_000_000:
+            raise StudioError("资产库信息过大。")
+        value = await request.json()
+        result = await asyncio.to_thread(LibraryStore(user_root(request).parent).write, value)
+        return web.json_response({"ok": True, "library": result}, headers={"Cache-Control": "no-store"})
 
     @routes.get("/infinite_canvas/boards/{key}")
     @guarded

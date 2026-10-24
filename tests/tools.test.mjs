@@ -1,0 +1,8 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {intersectsSelection} from '../web/selection.js';
+import {Shortcuts,chord} from '../web/shortcuts.js';
+test('lasso selects intersecting nodes for rectangles, ellipses and concave polygons',()=>{const n={x:40,y:40,w:20,h:20};assert.equal(intersectsSelection(n,'rectangle',[{x:10,y:10},{x:45,y:45}]),true);assert.equal(intersectsSelection(n,'ellipse',[{x:0,y:0},{x:100,y:100}]),true);assert.equal(intersectsSelection({x:95,y:95,w:5,h:5},'ellipse',[{x:0,y:0},{x:100,y:100}]),false);assert.equal(intersectsSelection(n,'polygon',[{x:20,y:20},{x:80,y:20},{x:80,y:80},{x:20,y:80}]),true);assert.equal(intersectsSelection(n,'polygon',[{x:0,y:0},{x:20,y:0},{x:20,y:20}]),false);});
+test('shortcut remapping persists, rejects conflicts in the same scope and supports Ctrl/Cmd',()=>{let saved='';const storage={getItem:()=>saved,setItem:(key,value)=>saved=value},s=new Shortcuts(storage);assert.equal(s.get('fit'),'Z');s.set('fit','F');assert.equal(new Shortcuts(storage).get('fit'),'F');assert.throws(()=>s.set('cut','F'),/重复/);s.set('fit','W');assert.equal(s.get('move'),'W');assert.equal(chord({key:'c',metaKey:true}),'Ctrl+C');assert.equal(s.matches({key:'w',altKey:true},'fourViews'),true);s.reset();assert.equal(s.get('fit'),'Z');});
+
+test('shared save bindings cannot mask director actions and cancellation can be remapped',()=>{const s=new Shortcuts(null);assert.throws(()=>s.set('save','R'),/重复/);s.set('cancel','Q');assert.equal(s.find({key:'q'},'canvas'),'cancel');assert.equal(s.find({key:'Escape'},'canvas'),undefined);assert.equal(s.find({key:'s',ctrlKey:true},'director'),'save');});

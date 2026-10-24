@@ -70,6 +70,6 @@ export function installEditing(ui){
         if(event.key==="Escape"&&ui.cutMode){event.preventDefault();event.stopImmediatePropagation();ui.setCutMode(false);}
     };
     // Run our scoped shortcuts before the original Escape/Delete handler.
-    removeEventListener("keydown",ui.onKey,true);addEventListener("keydown",key,true);addEventListener("keydown",ui.onKey,true);
+    ui.editingKey=key;removeEventListener("keydown",ui.onKey,true);addEventListener("keydown",key,true);addEventListener("keydown",ui.onKey,true);
     const close=ui.close.bind(ui);ui.close=()=>{ui.setCutMode(false);close();};const destroy=ui.destroy.bind(ui);ui.destroy=()=>{ui.endCut?.();removeEventListener("keydown",key,true);destroy();clearTimeout(ui.textSaveTimer);};
 }

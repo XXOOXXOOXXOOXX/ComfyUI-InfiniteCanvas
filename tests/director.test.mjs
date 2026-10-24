@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {outputSize} from '../web/director_capture.js';
+import {outputSize,captureTools} from '../web/director_capture.js';
 import {interpolate} from '../web/timeline.js';
 import {human,applyPose,posePresets} from '../web/human.js';
 import {Director} from '../web/director.js';
@@ -7,3 +7,5 @@ test('deleting the last camera is allowed and returns the director to free view'
 test('capture longest edge applies equally to portrait and landscape',()=>{assert.deepEqual(outputSize(16/9),[2048,1152]);assert.deepEqual(outputSize(9/16),[1152,2048]);assert.deepEqual(outputSize(1,2600),[2600,2600]);});
 test('timeline interpolates positions, FOV and bone angles without mutating keys',()=>{const a={position:[0,1,2],fov:40,pose:{bones:{head:[0,0,0]}}},b={position:[10,3,4],fov:60,pose:{bones:{head:[20,30,0]}}};assert.deepEqual(interpolate(a,b,.5),{position:[5,2,3],fov:50,pose:{bones:{head:[10,15,0]}}});assert.equal(a.position[0],0);});
 test('bundled CC0 human pack creates actual weighted anatomy and movable bones',async()=>{const original=globalThis.fetch;globalThis.fetch=async()=>new Response(fs.readFileSync(new URL('../web/vendor/human/humans.bin',import.meta.url)));try{const object=await human('标准男性','#4f8ef7'),mesh=object.userData.mesh;assert.ok(mesh.isSkinnedMesh);assert.equal(mesh.geometry.attributes.position.count,19158);assert.ok(object.userData.bones.size>40);assert.ok(mesh.geometry.attributes.skinWeight.count>10000);applyPose(object,{preset:'坐姿'});assert.ok(Math.abs(object.userData.bones.get('thigh_l').rotation.x)>1);assert.ok(Object.keys(posePresets).length>=20);}finally{globalThis.fetch=original;}});
+
+test('orthographic capture restores temporary wireframe materials before asynchronous encoding',async()=>{let wire=false,rendered=false;const pixel=globalThis.devicePixelRatio;globalThis.devicePixelRatio=1;const renderer={setPixelRatio(){},setSize(){},setScissorTest(){},setViewport(){},render(){assert.equal(wire,true);rendered=true;},domElement:{toBlob(callback){assert.equal(wire,false);queueMicrotask(()=>callback(new Blob(['png'],{type:'image/png'})));}}},director={renderer,state:{longest:256},scene:{},alive:true,cleanVisibility:()=>()=>{},prepareView:()=>{wire=true;return()=>wire=false;},resize(){},draw(){}};try{const blob=await captureTools.imageBlob.call(director,{aspect:16/9});assert.equal(blob.type,'image/png');assert.equal(rendered,true);assert.equal(wire,false);}finally{globalThis.devicePixelRatio=pixel;}});
